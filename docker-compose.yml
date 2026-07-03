@@ -1,0 +1,20 @@
+services:
+  promptpot:
+    build: .
+    image: promptpot:0.1.0
+    container_name: promptpot
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:11434:11434"
+      - "0.0.0.0:1234:1234"
+      - "0.0.0.0:8000:8000"
+      - "0.0.0.0:7860:7860"
+      - "0.0.0.0:8188:8188"
+    environment:
+      PROMPTPOT_HOST_IP: "${PROMPTPOT_HOST_IP:-127.0.0.1}"
+      PROMPTPOT_PORTS: "${PROMPTPOT_PORTS:-11434:ollama,1234:lmstudio,8000:vllm,7860:gradio,8188:comfyui}"
+      PROMPTPOT_MODELS: "${PROMPTPOT_MODELS:-llama3.1:8b,llama3.2:3b,qwen2.5:7b,mistral:7b,deepseek-r1:8b,nomic-embed-text:latest}"
+      PROMPTPOT_LOG: "/data/honeypots/log/promptpot.log"
+      PROMPTPOT_MAX_BODY_BYTES: "${PROMPTPOT_MAX_BODY_BYTES:-65536}"
+    volumes:
+      - "${TPOT_DATA_DIR:-/home/tpotadmin/tpotce/data}/honeypots/log:/data/honeypots/log"

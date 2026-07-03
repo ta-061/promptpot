@@ -1,0 +1,16 @@
+name: docker-build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python
+        run: python3 -m py_compile promptpot.py scripts/update_kibana.py
+      - name: Build image
+        run: docker build -t promptpot:ci .

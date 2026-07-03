@@ -1,0 +1,43 @@
+{
+  "models": [
+    "llama3.1:8b",
+    "llama3.2:3b",
+    "qwen2.5:7b",
+    "mistral:7b",
+    "deepseek-r1:8b",
+    "nomic-embed-text:latest"
+  ],
+  "ports": [
+    {"port": 11434, "profile": "ollama"},
+    {"port": 1234, "profile": "lmstudio"},
+    {"port": 8000, "profile": "vllm"},
+    {"port": 7860, "profile": "gradio"},
+    {"port": 8188, "profile": "comfyui"}
+  ],
+  "profiles": {
+    "ollama": {
+      "root_text": "Ollama is running",
+      "version": "0.5.7",
+      "completion_text": ""
+    },
+    "lmstudio": {
+      "service": "lmstudio",
+      "completion_text": ""
+    },
+    "vllm": {
+      "service": "vllm",
+      "docs_html": "<!doctype html><title>FastAPI - Swagger UI</title>",
+      "completion_text": ""
+    },
+    "gradio": {
+      "title": "Chatbot",
+      "html": "<!doctype html><title>Gradio</title><div id=\"root\"></div><script>window.gradio_config={version:'4.44.0'}</script>",
+      "completion_text": ""
+    },
+    "comfyui": {
+      "html": "<!doctype html><title>ComfyUI</title><div id=\"app\">ComfyUI</div>",
+      "device_name": "NVIDIA GeForce RTX 4090",
+      "completion_text": ""
+    }
+  }
+}
