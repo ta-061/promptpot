@@ -10,10 +10,32 @@ credentials, exploit payloads, or copied private data. Do not publish raw logs,
 live server IPs, SSH configuration, keys, `.env` files, or exact production
 inventory.
 
-## Reporting Issues
+## Supported Versions
 
-If you find a security issue in PromptPot itself, open a private advisory or
-contact the maintainers privately before publishing details.
+| Version | Supported |
+| ------- | --------- |
+| 0.1.x   | Yes       |
+
+## Reporting a Vulnerability
+
+If you find a security issue in PromptPot itself, please report it privately —
+do not open a public issue.
+
+1. Go to
+   [Security Advisories](https://github.com/ta-061/promptpot/security/advisories/new)
+   and submit a private vulnerability report ("Report a vulnerability" on the
+   repository's Security tab).
+2. Include the affected profile/endpoint, a reproduction, and the impact you
+   expect (e.g. log injection, resource exhaustion, response spoofing).
+
+You should get an initial response within 7 days. Once a fix is released, the
+advisory will be published with credit to the reporter unless you prefer to
+stay anonymous.
+
+Because PromptPot parses attacker-controlled input by design, bugs like crashes
+on malformed requests, log-file injection, or unbounded resource use are all in
+scope. Reports about the intentionally fake responses (e.g. "the model list is
+not real") are not vulnerabilities.
 
 ## Operational Notes
 
