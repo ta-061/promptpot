@@ -1,5 +1,9 @@
 # PromptPot
 
+[![docker-build](https://github.com/ta-061/promptpot/actions/workflows/docker-build.yml/badge.svg)](https://github.com/ta-061/promptpot/actions/workflows/docker-build.yml)
+[![release](https://img.shields.io/github/v/release/ta-061/promptpot)](https://github.com/ta-061/promptpot/releases)
+[![license](https://img.shields.io/github/license/ta-061/promptpot)](LICENSE)
+
 PromptPot is a multi-profile honeypot for exposed local-LLM services. It mimics
 common LLM HTTP APIs, records probes and prompts as JSON lines, and works as a
 sidecar for T-Pot / Logstash.
@@ -14,6 +18,21 @@ OpenAI-compatible `/v1/models`, a chat/completions endpoint, and a few product
 specific paths. PromptPot lets you bind those surfaces without running a real
 model.
 
+Unlike LLM-powered honeypots such as Beelzebub or Galah, which use an LLM to
+generate responses for classic services (SSH, generic HTTP), PromptPot works in
+the opposite direction: it emulates the LLM services themselves (Ollama,
+LM Studio, vLLM, Gradio apps, ComfyUI) so you can observe who scans for exposed
+model endpoints and what prompts they try to run. It is a single static-response
+Python process with no model, no API keys, and no outbound traffic.
+
+## Field Results
+
+PromptPot runs as a sidecar on three internet-facing T-Pot sensors (Japan,
+United States, Germany). In the first week of July 2026 it recorded about 5,300
+events from 510 unique source IPs, including roughly 900 prompt submissions
+against the fake completion endpoints. Ollama's port 11434 and
+OpenAI-compatible `/v1/*` paths receive by far the most traffic.
+
 ## Profiles
 
 | Port | Profile | Typical target | Event type |
@@ -25,6 +44,24 @@ model.
 | 8188 | `comfyui` | ComfyUI style API | `ComfyUIPot` |
 
 ## Quick Start
+
+Prebuilt multi-arch images (amd64/arm64) are published to GitHub Container
+Registry:
+
+```sh
+docker run -d --name promptpot \
+  --restart unless-stopped \
+  -p 0.0.0.0:11434:11434 \
+  -p 0.0.0.0:1234:1234 \
+  -p 0.0.0.0:8000:8000 \
+  -p 0.0.0.0:7860:7860 \
+  -p 0.0.0.0:8188:8188 \
+  -e PROMPTPOT_HOST_IP=203.0.113.10 \
+  -v ./log:/data/honeypots/log \
+  ghcr.io/ta-061/promptpot:latest
+```
+
+Or build from source:
 
 ```sh
 docker build -t promptpot:0.1.0 .

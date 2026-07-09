@@ -8,3 +8,4 @@
 - JSONL logging designed for T-Pot / Logstash ingestion.
 - T-Pot Kibana dashboard installer.
 - Configurable models, ports, profile responses, and capped body capture.
+- Prebuilt multi-arch images (amd64/arm64) on GitHub Container Registry.
