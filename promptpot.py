@@ -365,7 +365,7 @@ class ProfiledHTTPServer(ThreadingHTTPServer):
     def __init__(self, server_address: tuple[str, int], handler: type[BaseHTTPRequestHandler], profile: str) -> None:
         super().__init__(server_address, handler)
         self.profile = profile
-        self.listen_port = int(server_address[1])
+        self.listen_port = int(self.server_address[1])
 
 
 class PromptPotHandler(BaseHTTPRequestHandler):
@@ -588,7 +588,22 @@ class PromptPotHandler(BaseHTTPRequestHandler):
         body, truncated = self._read_body()
         parsed = parse_json_or_none(safe_decode(body))
         model = selected_model(parsed)
-        self._log_request(body, truncated, HTTPStatus.OK)
+        known_paths = {
+            "/api/generate",
+            "/api/chat",
+            "/api/show",
+            "/api/embeddings",
+            "/api/embed",
+            "/v1/chat/completions",
+            "/v1/completions",
+            "/v1/embeddings",
+            "/run/predict",
+            "/api/predict",
+            "/queue/join",
+            "/prompt",
+        }
+        status = HTTPStatus.OK if path in known_paths else HTTPStatus.NOT_FOUND
+        self._log_request(body, truncated, status)
         if path in {"/api/generate", "/api/chat"}:
             text = completion_text(self.profile)
             self._send_json(
@@ -656,7 +671,7 @@ class PromptPotHandler(BaseHTTPRequestHandler):
                 },
             )
         else:
-            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+            self._send_json(status, {"error": "not found"})
 
     def do_PUT(self) -> None:
         self.do_POST()

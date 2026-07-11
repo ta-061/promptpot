@@ -1,0 +1,65 @@
+name: Bug report
+description: Report reproducible incorrect behavior in PromptPot
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. For security vulnerabilities, use the private reporting link in SECURITY.md instead of this form.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Profile
+      options:
+        - ollama
+        - lmstudio
+        - vllm
+        - openai
+        - gradio
+        - comfyui
+        - T-Pot / Kibana integration
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Provide minimal commands or a synthetic request that reproduces the problem.
+      placeholder: |
+        PROMPTPOT_PORTS=18080:ollama PROMPTPOT_LOG=/tmp/promptpot.log python3 promptpot.py
+        curl ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or image digest
+      placeholder: v0.1.0 or ghcr.io/...@sha256:...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, architecture, Python or Docker version, and deployment mode.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data safety
+      options:
+        - label: I removed raw prompts, credentials, public sensor IPs, hostnames, and other sensitive data.
+          required: true
+        - label: I confirmed this is not a vulnerability report.
+          required: true
