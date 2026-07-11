@@ -70,15 +70,46 @@ DEFAULT_PROFILE_CONFIG: dict[str, dict[str, Any]] = {
     },
 }
 
+
+def non_negative_int_from_env(names: tuple[str, ...], default: int) -> int:
+    source = names[0]
+    raw_value = str(default)
+    for name in names:
+        if name in os.environ:
+            source = name
+            raw_value = os.environ[name]
+            break
+
+    try:
+        value = int(raw_value)
+    except ValueError:
+        raise ValueError(
+            f"{source} must be a non-negative integer (got {raw_value!r})"
+        ) from None
+    if value < 0:
+        raise ValueError(
+            f"{source} must be a non-negative integer (got {raw_value!r})"
+        )
+    return value
+
+
 LISTEN_HOST = os.environ.get(
     "PROMPTPOT_LISTEN_HOST",
     os.environ.get("LLMPOT_LISTEN_HOST", os.environ.get("OLLAMAPOT_LISTEN_HOST", "0.0.0.0")),
 )
 LOG_PATH = Path(os.environ.get("PROMPTPOT_LOG", os.environ.get("LLMPOT_LOG", "/data/honeypots/log/promptpot.log")))
 HOST_IP = os.environ.get("PROMPTPOT_HOST_IP", os.environ.get("LLMPOT_HOST_IP", os.environ.get("OLLAMAPOT_HOST_IP", "")))
-MAX_BODY_BYTES = int(
-    os.environ.get("PROMPTPOT_MAX_BODY_BYTES", os.environ.get("LLMPOT_MAX_BODY_BYTES", os.environ.get("OLLAMAPOT_MAX_BODY_BYTES", "65536")))
-)
+try:
+    MAX_BODY_BYTES = non_negative_int_from_env(
+        (
+            "PROMPTPOT_MAX_BODY_BYTES",
+            "LLMPOT_MAX_BODY_BYTES",
+            "OLLAMAPOT_MAX_BODY_BYTES",
+        ),
+        65536,
+    )
+except ValueError as exc:
+    raise SystemExit(f"promptpot: {exc}") from None
 CONFIG_PATH = os.environ.get("PROMPTPOT_CONFIG", os.environ.get("LLMPOT_CONFIG", ""))
 
 PROFILE_TYPES = {

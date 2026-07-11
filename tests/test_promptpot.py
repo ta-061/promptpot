@@ -3,6 +3,9 @@ from __future__ import annotations
 import http.client
 import io
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -14,6 +17,52 @@ import promptpot
 
 
 class HelperTests(unittest.TestCase):
+    def test_non_negative_int_from_env_uses_default_and_zero(self) -> None:
+        names = ("PROMPTPOT_TEST_SIZE", "LLMPOT_TEST_SIZE")
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(promptpot.non_negative_int_from_env(names, 42), 42)
+        with patch.dict(os.environ, {"PROMPTPOT_TEST_SIZE": "0"}, clear=True):
+            self.assertEqual(promptpot.non_negative_int_from_env(names, 42), 0)
+
+    def test_non_negative_int_from_env_preserves_precedence(self) -> None:
+        names = ("PROMPTPOT_TEST_SIZE", "LLMPOT_TEST_SIZE")
+        values = {"PROMPTPOT_TEST_SIZE": "12", "LLMPOT_TEST_SIZE": "24"}
+        with patch.dict(os.environ, values, clear=True):
+            self.assertEqual(promptpot.non_negative_int_from_env(names, 42), 12)
+        with patch.dict(os.environ, {"LLMPOT_TEST_SIZE": "24"}, clear=True):
+            self.assertEqual(promptpot.non_negative_int_from_env(names, 42), 24)
+
+    def test_non_negative_int_from_env_rejects_invalid_values(self) -> None:
+        names = ("PROMPTPOT_TEST_SIZE", "LLMPOT_TEST_SIZE")
+        for raw_value in ("abc", "-1"):
+            with self.subTest(raw_value=raw_value):
+                with patch.dict(
+                    os.environ, {"PROMPTPOT_TEST_SIZE": raw_value}, clear=True
+                ):
+                    with self.assertRaisesRegex(
+                        ValueError, "PROMPTPOT_TEST_SIZE must be a non-negative integer"
+                    ):
+                        promptpot.non_negative_int_from_env(names, 42)
+
+    def test_invalid_max_body_bytes_exits_with_concise_error(self) -> None:
+        environment = os.environ.copy()
+        environment["PROMPTPOT_MAX_BODY_BYTES"] = "abc"
+        result = subprocess.run(
+            [sys.executable, "promptpot.py"],
+            cwd=Path(__file__).resolve().parents[1],
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(
+            result.stderr.strip(),
+            "promptpot: PROMPTPOT_MAX_BODY_BYTES must be a non-negative integer "
+            "(got 'abc')",
+        )
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_parse_port_spec(self) -> None:
         self.assertEqual(
             promptpot.parse_port_spec("11434:ollama, 8000:vllm,9000"),
