@@ -239,6 +239,34 @@ class HTTPIntegrationTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertEqual(headers["Content-Type"], content_type)
 
+    def test_head_matches_get_headers_without_sending_a_body(self) -> None:
+        cases = [
+            ("ollama", "/api/tags"),
+            ("openai", "/v1/models"),
+            ("gradio", "/"),
+        ]
+        for profile, path in cases:
+            with self.subTest(profile=profile), redirect_stdout(io.StringIO()):
+                self.server.profile = profile
+                get_status, get_headers, get_body = self.request("GET", path)
+                event_count = len(self.events())
+
+                head_status, head_headers, head_body = self.request("HEAD", path)
+                events = self.events()
+
+                self.assertEqual(head_status, get_status)
+                self.assertEqual(
+                    head_headers["Content-Type"], get_headers["Content-Type"]
+                )
+                self.assertEqual(
+                    head_headers["Content-Length"], get_headers["Content-Length"]
+                )
+                self.assertEqual(int(head_headers["Content-Length"]), len(get_body))
+                self.assertEqual(head_body, b"")
+                self.assertEqual(len(events), event_count + 1)
+                self.assertEqual(events[-1]["http"]["http_method"], "HEAD")
+                self.assertEqual(events[-1]["http"]["status"], get_status)
+
 
 if __name__ == "__main__":
     unittest.main()
