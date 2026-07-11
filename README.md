@@ -170,6 +170,34 @@ Install the bundled Kibana dashboard from a T-Pot host:
 python3 scripts/update_kibana.py --api-url http://127.0.0.1:64296
 ```
 
+## Contributing
+
+Contributions from operators, security researchers, Python developers, and
+documentation authors are welcome. Useful contributions include:
+
+- Testing deployments and reporting reproducible compatibility issues.
+- Improving static response fidelity with public documentation or synthetic
+  fixtures.
+- Adding tests, profiles, dashboards, detection queries, or documentation.
+- Translating deployment and analysis guidance.
+
+Start with an issue labeled
+[`good first issue`](https://github.com/ta-061/promptpot/labels/good%20first%20issue)
+or [`help wanted`](https://github.com/ta-061/promptpot/labels/help%20wanted).
+Questions, ideas, and deployment reports belong in
+[GitHub Discussions](https://github.com/ta-061/promptpot/discussions).
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, pull request guidance,
+and rules for safe evidence. Project direction is tracked in
+[ROADMAP.md](ROADMAP.md).
+
+Run the local checks with:
+
+```sh
+python3 -m unittest discover -s tests -v
+python3 -m py_compile promptpot.py scripts/update_kibana.py
+```
+
 ## Safety
 
 Collected request bodies are attacker-controlled and can contain prompts,

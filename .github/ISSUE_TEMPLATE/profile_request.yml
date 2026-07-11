@@ -1,0 +1,51 @@
+name: Profile request
+description: Propose a new LLM service profile or fidelity improvement
+title: "[Profile]: "
+labels:
+  - enhancement
+  - profile
+body:
+  - type: input
+    id: service
+    attributes:
+      label: Service and version
+      placeholder: Service name and tested version
+    validations:
+      required: true
+  - type: input
+    id: port
+    attributes:
+      label: Common exposed port
+      placeholder: "8080"
+    validations:
+      required: true
+  - type: textarea
+    id: endpoints
+    attributes:
+      label: Relevant endpoints
+      description: List discovery or inference endpoints and expected status/response shapes.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Public documentation or synthetic evidence
+      description: Link public API documentation or provide a minimal sanitized example. Do not attach captured honeypot traffic.
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Why this profile matters
+      description: Explain exposure prevalence, observed scanning, or an integration use case without identifying sensors.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Safety boundaries
+      options:
+        - label: The proposed behavior does not execute input, run models, proxy requests, or require outbound traffic.
+          required: true
+        - label: The issue contains no credentials, raw prompts, live sensor addresses, or private deployment data.
+          required: true

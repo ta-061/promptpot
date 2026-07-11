@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/ta-061/promptpot/discussions
+    about: Ask for help, share a deployment report, or discuss an idea before it becomes an issue.
+  - name: Security vulnerability
+    url: https://github.com/ta-061/promptpot/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue.
