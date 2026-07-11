@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Report an actionable startup error when a request-body size environment
+  variable is non-numeric or negative.
+
 ## 0.1.0
 
 - Initial PromptPot release.
