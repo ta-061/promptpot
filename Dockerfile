@@ -1,4 +1,4 @@
-FROM python:3.12-alpine
+FROM python:3.14-alpine
 
 LABEL org.opencontainers.image.source="https://github.com/ta-061/promptpot" \
       org.opencontainers.image.description="Multi-profile honeypot for exposed local-LLM services (Ollama, LM Studio, vLLM, Gradio, ComfyUI)" \
