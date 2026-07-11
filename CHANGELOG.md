@@ -4,6 +4,8 @@
 
 - Report an actionable startup error when a request-body size environment
   variable is non-numeric or negative.
+- Return the representation length in HEAD response headers without sending a
+  response body.
 
 ## 0.1.0
 

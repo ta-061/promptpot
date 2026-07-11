@@ -479,7 +479,7 @@ class PromptPotHandler(BaseHTTPRequestHandler):
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(raw) if body else 0))
+        self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         if body:
             self.wfile.write(raw)
@@ -488,7 +488,7 @@ class PromptPotHandler(BaseHTTPRequestHandler):
         raw = payload.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(raw) if body else 0))
+        self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         if body:
             self.wfile.write(raw)
