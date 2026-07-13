@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import random
 import signal
 import sys
 import threading
@@ -171,6 +172,110 @@ def profile_value(profile: str, key: str, default: Any = "") -> Any:
 
 def completion_text(profile: str) -> str:
     return os.environ.get("PROMPTPOT_RESPONSE_TEXT", os.environ.get("LLMPOT_RESPONSE_TEXT", str(profile_value(profile, "completion_text", ""))))
+
+
+# Substring match types for response_rules. Matching is deliberately limited to
+# case-insensitive substring tests, never regex: prompts are attacker input and
+# Python's re module has no evaluation timeout (ReDoS risk).
+MATCH_TYPES = ("contains", "starts_with", "ends_with")
+
+
+def load_response_rules(config: dict[str, Any]) -> list[dict[str, Any]]:
+    rules = config.get("response_rules", [])
+    if not isinstance(rules, list):
+        return []
+    return [rule for rule in rules if isinstance(rule, dict)]
+
+
+RESPONSE_RULES = load_response_rules(CONFIG)
+
+
+def _rule_keywords(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str)]
+    return []
+
+
+def _rule_matches(rule: dict[str, Any], haystack: str) -> bool:
+    for match_type in MATCH_TYPES:
+        if match_type not in rule:
+            continue
+        for keyword in _rule_keywords(rule[match_type]):
+            needle = keyword.lower()
+            if not needle:
+                continue
+            if match_type == "contains" and needle in haystack:
+                return True
+            if match_type == "starts_with" and haystack.startswith(needle):
+                return True
+            if match_type == "ends_with" and haystack.endswith(needle):
+                return True
+    return False
+
+
+def _render_response(response: Any, model: str) -> str:
+    if isinstance(response, list):
+        choices = [item for item in response if isinstance(item, str)]
+        text = random.choice(choices) if choices else ""
+    elif isinstance(response, str):
+        text = response
+    else:
+        text = ""
+    if "{model}" in text:
+        # Only operator-configured model names may fill the placeholder, so an
+        # attacker-supplied "model" field is never reflected back verbatim.
+        safe_model = model if model in MODEL_NAMES else (MODEL_NAMES[0] if MODEL_NAMES else "")
+        text = text.replace("{model}", safe_model)
+    return text
+
+
+def request_match_text(parsed: Any) -> str:
+    """Concatenate user-visible request text used for response_rules matching."""
+    if not isinstance(parsed, dict):
+        return ""
+    parts: list[str] = []
+    for key in ("prompt", "input"):
+        value = parsed.get(key)
+        if isinstance(value, str):
+            parts.append(value)
+        elif isinstance(value, list):
+            parts.extend(item for item in value if isinstance(item, str))
+    messages = parsed.get("messages")
+    if isinstance(messages, list):
+        for message in messages:
+            if not isinstance(message, dict):
+                continue
+            content = message.get("content")
+            if isinstance(content, str):
+                parts.append(content)
+            elif isinstance(content, list):
+                for chunk in content:
+                    if isinstance(chunk, dict) and isinstance(chunk.get("text"), str):
+                        parts.append(chunk["text"])
+    data = parsed.get("data")
+    if isinstance(data, list):
+        parts.extend(item for item in data if isinstance(item, str))
+    return "\n".join(parts)
+
+
+def matched_response(profile: str, parsed: Any) -> tuple[str, str | None]:
+    """Return (response_text, matched_rule_name).
+
+    The first rule that matches wins. When no rule matches, fall back to the
+    static completion_text so existing PROMPTPOT_RESPONSE_TEXT deployments keep
+    their behavior. Responses are always static strings from configuration;
+    attacker input is never executed or reflected.
+    """
+    haystack = request_match_text(parsed).strip().lower()
+    if haystack:
+        model = selected_model(parsed)
+        for index, rule in enumerate(RESPONSE_RULES):
+            if _rule_matches(rule, haystack):
+                name = rule["name"] if isinstance(rule.get("name"), str) else f"rule[{index}]"
+                return _render_response(rule.get("response"), model), name
+    return completion_text(profile), None
 
 
 def utc_now() -> str:
@@ -435,7 +540,7 @@ class PromptPotHandler(BaseHTTPRequestHandler):
             remaining -= len(chunk)
         return body, truncated
 
-    def _log_request(self, body: bytes, truncated: bool, status: int) -> None:
+    def _log_request(self, body: bytes, truncated: bool, status: int, matched_rule: str | None = None) -> None:
         src_ip, src_port = self.client_address[:2]
         body_text = safe_decode(body)
         parsed = parse_json_or_none(body_text)
@@ -471,6 +576,7 @@ class PromptPotHandler(BaseHTTPRequestHandler):
                 "model": model,
                 "prompt": prompt,
                 "messages": messages,
+                "matched_rule": matched_rule,
             },
         }
         append_log(event)
@@ -634,9 +740,21 @@ class PromptPotHandler(BaseHTTPRequestHandler):
             "/prompt",
         }
         status = HTTPStatus.OK if path in known_paths else HTTPStatus.NOT_FOUND
-        self._log_request(body, truncated, status)
+        completion_paths = {
+            "/api/generate",
+            "/api/chat",
+            "/v1/chat/completions",
+            "/v1/completions",
+            "/run/predict",
+            "/api/predict",
+            "/queue/join",
+        }
+        if path in completion_paths:
+            text, matched_rule = matched_response(self.profile, parsed)
+        else:
+            text, matched_rule = "", None
+        self._log_request(body, truncated, status, matched_rule)
         if path in {"/api/generate", "/api/chat"}:
-            text = completion_text(self.profile)
             self._send_json(
                 HTTPStatus.OK,
                 {
@@ -668,9 +786,9 @@ class PromptPotHandler(BaseHTTPRequestHandler):
                 },
             )
         elif path == "/v1/chat/completions":
-            self._send_json(HTTPStatus.OK, openai_chat_response(model, completion_text(self.profile)))
+            self._send_json(HTTPStatus.OK, openai_chat_response(model, text))
         elif path == "/v1/completions":
-            self._send_json(HTTPStatus.OK, openai_completion_response(model, completion_text(self.profile)))
+            self._send_json(HTTPStatus.OK, openai_completion_response(model, text))
         elif path == "/v1/embeddings":
             self._send_json(
                 HTTPStatus.OK,
@@ -685,7 +803,7 @@ class PromptPotHandler(BaseHTTPRequestHandler):
             self._send_json(
                 HTTPStatus.OK,
                 {
-                    "data": [completion_text(self.profile)],
+                    "data": [text],
                     "is_generating": False,
                     "duration": 0.04,
                     "average_duration": 0.04,

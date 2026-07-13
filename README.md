@@ -131,6 +131,34 @@ docker run -d --name promptpot \
 Legacy `LLMPOT_*` variables are still accepted, but new deployments should use
 `PROMPTPOT_*`.
 
+### Response Rules
+
+Scanners often send a canary prompt such as `say pong` or `Reply with OK`
+before attempting anything deeper. A single static `PROMPTPOT_RESPONSE_TEXT`
+fails these liveness checks. Add a `response_rules` array to the JSON config to
+return a canned answer when the prompt matches:
+
+```json
+"response_rules": [
+  {"name": "ping", "contains": ["ping", "pong"], "response": ["PONG", "pong"]},
+  {"name": "say-ok", "contains": "reply with ok", "response": "OK"},
+  {"name": "greeting", "starts_with": ["say hi", "say hello"], "response": ["Hello!", "Hi there!"]},
+  {"name": "model-probe", "contains": "what model", "response": "I am {model}."}
+]
+```
+
+- **Match types:** `contains`, `starts_with`, `ends_with`. Matching is
+  case-insensitive substring only (never regex, so attacker input cannot cause
+  ReDoS). Each type accepts a single keyword or a list (OR).
+- **Responses** are always static strings from configuration. A list picks one
+  at random per request to reduce fingerprinting.
+- **`{model}`** in a response is filled only with an operator-configured model
+  name; an attacker-supplied `model` field that is not in `PROMPTPOT_MODELS` is
+  never reflected back.
+- The **first matching rule wins**. When nothing matches, PromptPot falls back
+  to `PROMPTPOT_RESPONSE_TEXT`. The matched rule name (or `null`) is recorded in
+  the `promptpot.matched_rule` event field.
+
 ## Useful KQL
 
 All PromptPot events:
@@ -155,6 +183,12 @@ Ollama API generation attempts:
 
 ```kql
 sensor: "promptpot" and http.url: ("/api/generate" or "/api/chat")
+```
+
+Prompts that triggered a canned response rule:
+
+```kql
+sensor: "promptpot" and promptpot.matched_rule: *
 ```
 
 ## T-Pot Notes
