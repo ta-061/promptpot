@@ -98,6 +98,73 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(extracted_prompt, "")
         self.assertEqual(messages, '[{"role":"user","content":"hello"}]')
 
+    def test_load_response_rules_keeps_only_dict_entries(self) -> None:
+        rules = promptpot.load_response_rules(
+            {"response_rules": [{"contains": "ping", "response": "pong"}, "junk", 5]}
+        )
+        self.assertEqual(rules, [{"contains": "ping", "response": "pong"}])
+        self.assertEqual(promptpot.load_response_rules({"response_rules": "bad"}), [])
+
+    def test_request_match_text_collects_prompt_and_messages(self) -> None:
+        text = promptpot.request_match_text(
+            {
+                "prompt": "say PING",
+                "messages": [{"role": "user", "content": "reply with OK"}],
+            }
+        )
+        self.assertIn("say PING", text)
+        self.assertIn("reply with OK", text)
+
+    def test_matched_response_first_match_wins_case_insensitive(self) -> None:
+        rules = [
+            {"contains": "pong", "response": "pong"},
+            {"contains": "ok", "response": "OK", "name": "liveness-ok"},
+        ]
+        with patch.object(promptpot, "RESPONSE_RULES", rules):
+            text, name = promptpot.matched_response(
+                "ollama", {"messages": [{"role": "user", "content": "Reply with OK"}]}
+            )
+        self.assertEqual(text, "OK")
+        self.assertEqual(name, "liveness-ok")
+
+    def test_matched_response_falls_back_to_completion_text(self) -> None:
+        rules = [{"contains": "pong", "response": "pong"}]
+        with patch.object(promptpot, "RESPONSE_RULES", rules), patch.dict(
+            os.environ, {"PROMPTPOT_RESPONSE_TEXT": "fallback"}, clear=True
+        ):
+            text, name = promptpot.matched_response("ollama", {"prompt": "hello"})
+        self.assertEqual(text, "fallback")
+        self.assertIsNone(name)
+
+    def test_matched_response_starts_and_ends_with(self) -> None:
+        rules = [
+            {"starts_with": "say:", "response": "start"},
+            {"ends_with": "works", "response": "end"},
+        ]
+        with patch.object(promptpot, "RESPONSE_RULES", rules):
+            self.assertEqual(
+                promptpot.matched_response("ollama", {"prompt": "say: WORKS"})[0],
+                "start",
+            )
+            self.assertEqual(
+                promptpot.matched_response("ollama", {"prompt": "this WORKS"})[0],
+                "end",
+            )
+
+    def test_model_placeholder_rejects_unlisted_model(self) -> None:
+        rules = [{"contains": "model", "response": "running {model}"}]
+        with patch.object(promptpot, "RESPONSE_RULES", rules), patch.object(
+            promptpot, "MODEL_NAMES", ["llama3.1:8b"]
+        ):
+            listed = promptpot.matched_response(
+                "ollama", {"model": "llama3.1:8b", "prompt": "what model"}
+            )[0]
+            spoofed = promptpot.matched_response(
+                "ollama", {"model": "evil; rm -rf /", "prompt": "what model"}
+            )[0]
+        self.assertEqual(listed, "running llama3.1:8b")
+        self.assertEqual(spoofed, "running llama3.1:8b")
+
     def test_append_log_writes_one_json_line(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "nested" / "events.jsonl"
@@ -216,6 +283,39 @@ class HTTPIntegrationTests(unittest.TestCase):
         self.assertTrue(event["promptpot"]["body_truncated"])
         self.assertEqual(len(event["promptpot"]["body"]), 16)
         self.assertEqual(event["http"]["length"], 64)
+
+    def test_response_rule_matches_and_logs_rule_name(self) -> None:
+        rules = [{"contains": "ping", "response": "pong", "name": "liveness"}]
+        request_body = json.dumps(
+            {"messages": [{"role": "user", "content": "respond with PING"}]}
+        ).encode()
+        with patch.object(promptpot, "RESPONSE_RULES", rules), redirect_stdout(
+            io.StringIO()
+        ):
+            status, _, body = self.request(
+                "POST",
+                "/v1/chat/completions",
+                request_body,
+                {"Content-Type": "application/json"},
+            )
+
+        response = json.loads(body)
+        event = self.events()[0]
+        self.assertEqual(status, 200)
+        self.assertEqual(response["choices"][0]["message"]["content"], "pong")
+        self.assertEqual(event["promptpot"]["matched_rule"], "liveness")
+
+    def test_no_rule_match_logs_null_matched_rule(self) -> None:
+        with patch.object(promptpot, "RESPONSE_RULES", []), redirect_stdout(
+            io.StringIO()
+        ):
+            self.request(
+                "POST",
+                "/api/generate",
+                b'{"prompt":"unmatched"}',
+                {"Content-Type": "application/json"},
+            )
+        self.assertIsNone(self.events()[0]["promptpot"]["matched_rule"])
 
     def test_unknown_post_returns_and_logs_not_found(self) -> None:
         with redirect_stdout(io.StringIO()):
