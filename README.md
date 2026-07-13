@@ -35,13 +35,13 @@ OpenAI-compatible `/v1/*` paths receive by far the most traffic.
 
 ## Profiles
 
-| Port | Profile | Typical target | Event type |
-| ---: | --- | --- | --- |
-| 11434 | `ollama` | Ollama | `OllamaPot` |
-| 1234 | `lmstudio` | LM Studio / local OpenAI-compatible API | `LMStudioPot` |
-| 8000 | `vllm` | vLLM / FastAPI OpenAI-compatible API | `VLLMPot` |
-| 7860 | `gradio` | Gradio / text-generation-webui style apps | `GradioPot` |
-| 8188 | `comfyui` | ComfyUI style API | `ComfyUIPot` |
+|  Port | Profile    | Typical target                            | Event type    |
+| ----: | ---------- | ----------------------------------------- | ------------- |
+| 11434 | `ollama`   | Ollama                                    | `OllamaPot`   |
+|  1234 | `lmstudio` | LM Studio / local OpenAI-compatible API   | `LMStudioPot` |
+|  8000 | `vllm`     | vLLM / FastAPI OpenAI-compatible API      | `VLLMPot`     |
+|  7860 | `gradio`   | Gradio / text-generation-webui style apps | `GradioPot`   |
+|  8188 | `comfyui`  | ComfyUI style API                         | `ComfyUIPot`  |
 
 ## Quick Start
 
@@ -117,47 +117,19 @@ docker run -d --name promptpot \
   promptpot:0.1.0
 ```
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `PROMPTPOT_LISTEN_HOST` | `0.0.0.0` | Bind address inside the container |
-| `PROMPTPOT_PORTS` | `11434:ollama,1234:lmstudio,8000:vllm,7860:gradio,8188:comfyui` | Comma-separated `port:profile` listeners |
-| `PROMPTPOT_HOST_IP` | empty | Public sensor IP written to `dest_ip` |
-| `PROMPTPOT_LOG` | `/data/honeypots/log/promptpot.log` | JSONL output path |
-| `PROMPTPOT_MAX_BODY_BYTES` | `65536` | Maximum request body bytes stored per event |
-| `PROMPTPOT_MODELS` | common small/mid local models | Comma-separated model list returned by model APIs |
-| `PROMPTPOT_RESPONSE_TEXT` | empty | Optional harmless response text for completion APIs |
-| `PROMPTPOT_CONFIG` | empty | JSON config file for models, ports, and profile responses |
+| Variable                   | Default                                                         | Description                                               |
+| -------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- |
+| `PROMPTPOT_LISTEN_HOST`    | `0.0.0.0`                                                       | Bind address inside the container                         |
+| `PROMPTPOT_PORTS`          | `11434:ollama,1234:lmstudio,8000:vllm,7860:gradio,8188:comfyui` | Comma-separated `port:profile` listeners                  |
+| `PROMPTPOT_HOST_IP`        | empty                                                           | Public sensor IP written to `dest_ip`                     |
+| `PROMPTPOT_LOG`            | `/data/honeypots/log/promptpot.log`                             | JSONL output path                                         |
+| `PROMPTPOT_MAX_BODY_BYTES` | `65536`                                                         | Maximum request body bytes stored per event               |
+| `PROMPTPOT_MODELS`         | common small/mid local models                                   | Comma-separated model list returned by model APIs         |
+| `PROMPTPOT_RESPONSE_TEXT`  | empty                                                           | Optional harmless response text for completion APIs       |
+| `PROMPTPOT_CONFIG`         | empty                                                           | JSON config file for models, ports, and profile responses |
 
 Legacy `LLMPOT_*` variables are still accepted, but new deployments should use
 `PROMPTPOT_*`.
-
-### Response Rules
-
-Scanners often send a canary prompt such as `say pong` or `Reply with OK`
-before attempting anything deeper. A single static `PROMPTPOT_RESPONSE_TEXT`
-fails these liveness checks. Add a `response_rules` array to the JSON config to
-return a canned answer when the prompt matches:
-
-```json
-"response_rules": [
-  {"name": "ping", "contains": ["ping", "pong"], "response": ["PONG", "pong"]},
-  {"name": "say-ok", "contains": "reply with ok", "response": "OK"},
-  {"name": "greeting", "starts_with": ["say hi", "say hello"], "response": ["Hello!", "Hi there!"]},
-  {"name": "model-probe", "contains": "what model", "response": "I am {model}."}
-]
-```
-
-- **Match types:** `contains`, `starts_with`, `ends_with`. Matching is
-  case-insensitive substring only (never regex, so attacker input cannot cause
-  ReDoS). Each type accepts a single keyword or a list (OR).
-- **Responses** are always static strings from configuration. A list picks one
-  at random per request to reduce fingerprinting.
-- **`{model}`** in a response is filled only with an operator-configured model
-  name; an attacker-supplied `model` field that is not in `PROMPTPOT_MODELS` is
-  never reflected back.
-- The **first matching rule wins**. When nothing matches, PromptPot falls back
-  to `PROMPTPOT_RESPONSE_TEXT`. The matched rule name (or `null`) is recorded in
-  the `promptpot.matched_rule` event field.
 
 ## Useful KQL
 
@@ -185,11 +157,23 @@ Ollama API generation attempts:
 sensor: "promptpot" and http.url: ("/api/generate" or "/api/chat")
 ```
 
-Prompts that triggered a canned response rule:
+## Docker Health Check
 
-```kql
-sensor: "promptpot" and promptpot.matched_rule: *
-```
+The Docker image includes a built-in health check.
+
+The health check:
+
+- Reads the configured listeners from `PROMPTPOT_PORTS`.
+- Attempts a local TCP connection to each configured listener on `127.0.0.1`.
+- Returns healthy if any configured listener is reachable.
+- Returns unhealthy if no configured listener is reachable.
+- Performs only local checks and makes no outbound network requests.
+
+Default settings:
+
+- Interval: 30 seconds
+- Timeout: 3 seconds
+- Retries: 3
 
 ## T-Pot Notes
 
