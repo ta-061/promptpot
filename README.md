@@ -191,6 +191,25 @@ Prompts that triggered a canned response rule:
 sensor: "promptpot" and promptpot.matched_rule: *
 ```
 
+## Docker Health Check
+
+The Docker image includes a built-in health check.
+
+The health check:
+
+- Reads the configured listeners from `PROMPTPOT_PORTS`, the JSON config file
+  (`PROMPTPOT_CONFIG`), or the built-in defaults, in that order.
+- Attempts a local TCP connection to each configured listener on `127.0.0.1`.
+- Returns healthy if any configured listener is reachable.
+- Returns unhealthy if no configured listener is reachable.
+- Performs only local checks and makes no outbound network requests.
+
+Default settings:
+
+- Interval: 30 seconds
+- Timeout: 3 seconds
+- Retries: 3
+
 ## T-Pot Notes
 
 Do not bind ports already used by T-Pot containers. Adding PromptPot to a port
