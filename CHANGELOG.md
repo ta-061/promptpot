@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - Add keyword/pattern-based `response_rules` so completion endpoints can answer
   scanner liveness prompts (e.g. "say pong") with configurable static text. The
   matched rule name is recorded in the `promptpot.matched_rule` event field.
+  (#23, thanks @Taka-cst)
+- Add a Docker health check that probes the configured listeners over local
+  TCP, honoring `PROMPTPOT_PORTS`, `PROMPTPOT_CONFIG`, and the defaults.
+  (#24, thanks @MohamedFazil1406)
 - Report an actionable startup error when a request-body size environment
   variable is non-numeric or negative.
 - Return the representation length in HEAD response headers without sending a
