@@ -11,6 +11,8 @@ sidecar for T-Pot / Logstash.
 It never runs models, downloads model data, proxies traffic, or executes
 attacker input.
 
+**Field report:** https://promptpot.tatu-sec.dev
+
 ## Why PromptPot
 
 Many exposed LLM services look alike from the internet: model discovery, an
