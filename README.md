@@ -1,4 +1,4 @@
-<img src="docs/logo.svg" alt="PromptPot" width="440">
+<img src="docs/logo.svg" alt="PromptPot" width="620">
 
 [![docker-build](https://github.com/ta-061/promptpot/actions/workflows/docker-build.yml/badge.svg)](https://github.com/ta-061/promptpot/actions/workflows/docker-build.yml)
 [![release](https://img.shields.io/github/v/release/ta-061/promptpot)](https://github.com/ta-061/promptpot/releases)
